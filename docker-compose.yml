@@ -1,0 +1,59 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: agentgate
+      POSTGRES_PASSWORD: agentgate
+      POSTGRES_DB: agentgate
+    ports:
+      - "5432:5432"
+    volumes:
+      - agentgate_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U agentgate"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  sample-api:
+    build: .
+    command: ["uvicorn", "sample_api.main:app", "--host", "0.0.0.0", "--port", "9000"]
+    ports:
+      - "9000:9000"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:9000/docs"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  agentgate:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      AGENTGATE_DATABASE_URL: postgresql+asyncpg://agentgate:agentgate@postgres:5432/agentgate
+      AGENTGATE_REDIS_URL: redis://redis:6379/0
+      AGENTGATE_DOWNSTREAM_BASE_URL: http://sample-api:9000
+      AGENTGATE_JWT_SECRET: change-me-in-real-deployments
+      AGENTGATE_ADMIN_API_KEY: change-me-in-real-deployments
+      AGENTGATE_ENVIRONMENT: docker-compose
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      sample-api:
+        condition: service_healthy
+
+volumes:
+  agentgate_pgdata:

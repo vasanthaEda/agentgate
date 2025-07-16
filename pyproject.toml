@@ -1,0 +1,24 @@
+[project]
+name = "agentgate"
+version = "0.1.0"
+description = "A policy-and-budget-enforcing gateway between LLM agents and internal REST APIs."
+requires-python = ">=3.11"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+ignore = ["B008"]  # FastAPI's Depends(...) as a default argument is idiomatic
+
+# pytest configuration lives in pytest.ini (pytest prefers it over this file
+# when both are present); kept here too for tools that only look at pyproject.
+
+[tool.coverage.run]
+# SQLAlchemy's async support hops through greenlets to run the sync DBAPI
+# driver, and FastAPI runs sync dependencies in a threadpool -- without
+# telling coverage.py about both, it silently under-reports everything that
+# crosses either boundary.
+concurrency = ["greenlet", "thread"]
+source = ["app"]
